@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<body style="font-family:Optima">
+
+<h1>Time Series Forecasting using SARIMA Model</h1>
+<h3 style="color:grey">Predicting the next 10 trading days stock price of Mediocre Social Network Apps Incorporated</h3>
+
+<p>I’ve got one proud, yet annoying younger sister who goes to a neighboring school of mine. In this quarantine time for all, there’s only one thing that she talks about it all the time: stocks! Quarantine got her nothing to do other than catching up on her missed online lectures and late-night quizzes that must be done before midnight, which has made her to dive into the world of puts and calls, short and longs. No surprises, today I heard two screams from her about how she made a poor decision to not buy XX’s call before their earnings  announcement yesterday, and how buying YY right before the markets closed today brought her an extra penny. </p>
+
+<p>I’m pretty sure my sister isn’t the only one who gets “now glad, now sad” by the fluctuating stock prices. How amazing it would be if we could get a little hint on how my stock will perform tomorrow, the day after, and even next week? Being a millionaire and living off in those big mansions wouldn’t be like chasing a rainbow anymore. 
+</p>
+
+<p>In this article, I’ll be examining the stock price data from Mediocre Social Network Inc. and use their historical price data to forecast their stock price for the next 10 trading days. The forecasting will be done by using a SARIMA model, and the list below briefly summarizes the list of the topics that will be covered for the process:
+</p>
+
+<ol type="1">
+  <li>Exploratory Data Analysis and Stationarity</li>
+  <li>Model Selection via ACF and PACF plots</li>
+  <li>Model Comparison and Selection</li>
+  <li>Results and Prediction</li>
+  <li>Random Walk model and Stock Prices</li>
+</ol>
+
+
+<h3>EDA and Stationarity</h3>
+<p>Before putting hands on the modeling process, the given data was first skimmed through to find some meaningful information. </p>
+
+<center>
+	<figure>
+	<image src="1.1.png" width="700" height="400"/>
+	<figcaption><i>Figure 1. Time series data of Mediocre Social Network Apps Inc. from Jan 2015 to Sep 2019</i></figcaption>
+</figure>
+</center>
+
+
+
+<p>As you can immediately see from Figure 1, the stocks data set illustrates an evident decreasing trend in its price. There are some patterns in price every year as well, where it increases higher than usual with a spike and then returning back to the normal trend. Pretty soon, we’ll be able to confirm if this pattern is something seasonal and actually matters in our modeling process!</p>
+
+<p>But one thing that we must go through before fitting any model is to pursue “stationarity” in our data. For data to be stationary, we need it to have a constant mean, constant variance, constant autocorrelation and no periodic component. Autocorrelation here could be easily understood as how much our current value is being dependent on the past value. With these in mind, we should give a little tweak to our data so that it doesn’t display any decreasing trend nor those seasonal spikes, as well as the variance that acts out in order. </p>
+
+<center>
+	<figure>
+	<image src="2.1.png" />
+	<figcaption><i>Figure 2. Residuals of the dataset after differencing</i></figcaption>
+</figure>
+</center>
+
+
+<p>First differencing the data yielded me a plot that doesn’t show any decreasing trend anymore, however the variance was getting smaller as it goes. This issue was addressed by log transforming the original data, which finally left me with a plot shown in Figure 2. And ta-da, it seems to comply with our criteria for stationarity — e.g. notice how its mean is around 0! Though there are some notable spikes occasionally, it wouldn’t be detrimental to our model as our data includes more than 1000 entires. Now let’s move on to the real game  modeling process. </p>
+
+<h3>Modeling — ACF and PACF</h3>
+<p>Spoiler alert, the two models that we’ll be building are ARIMA(0,1,0) and SARIMA(0,1,1)(1,1,1,21). SARIMA models are just ARIMA models with a seasonal componet <i>s</i>. Below summarizes the parameters that are being used in ARIMA/SARIMA models.</p>
+
+<p>In ARIMA(p,d,q) and SARIMA(p,d,q)x(P,D,Q,s):</p>
+<ul>
+  <li>p and seasonal P: number of autoregressive (AR) terms</li>
+  <li>d and seasonal D: number of differencing that must be done to stationarize series</li>
+  <li>q and seasonal Q: number of moving average (MA) terms</li>
+  <li>s: seasonal length in the data</li>
+</ul>
+
+<p>Having our stationary data in both hands, our next task will be to determine the ideal ARIMA, SARIMA parameters for the model. In order to do so, I first have checked periodogram to see if there is any notable seasonality present in our differenced data.</p>
+
+<center>
+	<figure>
+	<image src="2.2.png" />
+	<figcaption><i>Figure 3. Periodogram of differenced data</i></figcaption>
+</figure>
+</center>
+
+<p>Seems like it’s very sparse — if there were any notable seasonality, it would only display a sharp spike. In other words, there are no notable seasonality. However, it is meaningful to note that periodogram which looks like above resembles a white noise: noise with mean 0, constant variance, and autocorrelation of 0 for all lags. We could confirm this by examining the ACF and PACF plot of our differenced data. Abbreviation for Autocorrelation function plot and Partial autocorrelation function plot, it shows how much of a correlation exists between each lag of time. </p>
+
+
+<center>
+	<figure>
+	<image src="2.2acf.png" />
+	<figcaption><i>Figure 4. ACF/PACF plot of differenced data</i></figcaption>
+</figure>
+</center>
+
+<p>We can see that all the lines in ACF and PACF plot lies within the blue-dashed line. So what does it mean? The blue line gives a visual exam for the appropriateness of white noise — in other words, it confirms our observation from periodogram that the differenced series is a white noise! So what do we have to do now? Choose ARIMA (0,1,0) to be our first model! We didn’t see any lines sticking outside of blue band in both ACF and PACF, leading p and q to take value of 0 each, and d would be 1 as we have taken a first difference to the original data set. So here we are, with our first model ARIMA (0,1,0), which is also known as the “random walk model” (more to be discussed soon!)</p>
+
+<p>Moving on to the next model right away — do you remember that there were some slight seasonal spiky patterns visible in our plot of original data? We are going to address that in our second model. I tried out several seasonal differencing on our first differenced data: 253 days as it’s the approximate number of trading days in a year, 126 days which is half a year, 63 days which is a quarter, and 21 days which is basically a month. Among them, seasonal differencing of 21 days displayed the most stabilized behavior with distinct ACF/PACF plot that is easy to deal with. So let me share the results now!</p>
+
+<center>
+	<figure>
+	<image src="2.3.png" />
+	<figcaption><i>Figure 5. ACF/PACF plot of first differenced data with seasonal lag of 21 days</i></figcaption>
+</figure>
+</center>
+
+<p>Unlike ACF/PACF plot that we’ve seen above, this one has some notable spikes that are sticking out side of the blue band — meaning it’s not a white noise anymore! One spike in ACF plot indicates a clear MA variable of 1, while repetitive spike with slight decrease in size shown in PACF is a clear evidence of season AR lag of 1. After trying to fit SARIMA(0,1,1)(1,1,0,21) into our log transformed data, the resulting ACF plot suggested adding an additional seasonal MA lag of 1, which left me with the final model of SARIMA (0,1,1)(1,1,1,21) — our second model. </p>
+
+<h3>Model Comparison and Selection</h3>
+
+<p>We have built two models so far — and of course the next step is to choose only the best one among them! In order to do so, we will use 4 criteria in total: AIC, AICc, BIC, and CV mean. Below summarizes what AIC, AICc, BIC are, and I’ll separately explain how CV mean will be calculated afterwards. </p>
+
+<ul>
+  <li>AIC (Akaike’s information criterion): choose the model that minimizes <i>-2log(likelihood) +2k</i>, where 2k is a penalty function which penalizes models for each parameter used
+  <li>BIC (Bayesian Information Criterion): choose the model that minimizes <i>-2log(likelihood) + k log n</i>. The penalty is larger than AIC, thereby choosing more simple models compared to AIC
+  <li>AICc (Biased corrected AIC): <i><sup>AIC+2k(k+1)</sup>&frasl;<sub>n-k-1</sub></i>. It is corrected for small sample sizes, where AIC tends to select too many parameters.
+</ul>
+
+<p>If you don’t get it, just one take away: smaller the value, the better!</p>
+
+<p>CV mean is calculated from cross validating the model. Using the minimum of 1004 log transformed data as the training set, we will iterate over the next 10 price data each time, until it reaches the last data point. Based on these training data, we then predict the price for next 10 trading days, starting off from the iteration’s last price data of the training set. Lastly, we compute the sum of squared error between our forecasted data and the actual price data from the test set. Averaging these sum of squares from each iteration, we’ll be able to obtain a CV mean for each model — again, smaller the value, the better. FYI, I have attached the code that does the above process.</p>
+<blockquote>
+<code>
+# Cross-Validation <br>
+i=seq(0,180,10)<br>
+<br>
+sse = matrix(NA, nrow=length(i),ncol=2)
+<br>
+for (k in 1:length(i)){<br>
+  &nbsp;&nbsp;# Split train/test<br>
+  &nbsp;&nbsp;train = logst[1:(1004+i[k])]<br>
+  &nbsp;&nbsp;test = logst[(1004+i[k]+1):(1004+i[k]+10)]<br>
+  <br>
+  &nbsp;&nbsp;# Fit<br>
+  &nbsp;&nbsp;m1=sarima.for(train, n.ahead=10, p=0, d=1, q=0, plot.all=FALSE)<br>
+  &nbsp;&nbsp;m2=sarima.for(train, n.ahead=10, p=0, d=1, q=1, P=1, Q=1, D=1, S=21, plot.all=FALSE)<br>
+<br>
+  &nbsp;&nbsp;sse[k,1] = sum((test - m1$pred)^2)<br>
+  &nbsp;&nbsp;sse[k,2] = sum((test - m2$pred)^2)<br>
+}<br>
+sse=apply(sse,2,mean)<br>
+sse<br>
+</code>
+</blockquote>
+
+<p>And the summary table below helps us comparing the two models of our choice.</p>
+
+<center>
+	<figure>
+	<image src="table.png"  width="550" height="125"/>
+	<figcaption><i>Table 1. Summary Table of Model Comparison Criteria</i></figcaption>
+</figure>
+</center>
+
+
+
+<p>We can easily see that all the criteria had slightly better results for ARIMA (0,1,0), yielding lower values. Let’s see how we can use ARIMA (0,1,0) for the forecasting in the next section. </p>
+
+<h3>Results and Prediction</h3>
+
+<center>
+	<figure>
+	<image src="sarima.png"  />
+	<figcaption><i>Figure 6. Sarima output from R for ARIMA (0,1,0)</i></figcaption>
+</figure>
+</center>
+
+
+<p>This is the R output we get from using `sarima` function to fit ARIMA(0,1,0) to the log transformed data. If you look at the very first plot that shows the residuals, we can see that it’s pretty stationary with constant mean and variance. ACF plot as well indicates that our model is reflecting all the AR, MA, and seasonal components into the parameter. One thing I want give an emphasis in this output is the Ljung-Box statistics results that is shown at the very end. Ljung-Box-Pierce test provides a strategy to evaluate whether or not our fitted model is appropriate for the data we have fed it. If the p-values are large enough and most of them float above the blue line, we can confidently conclude that our model is a good fit to our data. What do you think of our results? No doubt, seems like ARIMA (0,1,0) wasn’t a poor choice.</p>
+
+<p>We end up with the final equation that looks like this:</p>
+
+<center><image src="eqn.gif" /></center>
+
+
+<p>Note, we wouldn’t need any parameter estimation since there is no parameter! But here I provide you with an estimate of delta (drift term) and sigma hat (variance of white noise). </p>
+
+<center>
+	<figure>
+	<image src="parameter.png"  width="450" height="90"/>
+	<figcaption><i>Table 2. Summary Table of Parameter Estimation</i></figcaption>
+</figure>
+</center>
+
+
+<p>And, here is the plot with out prediction! </p>
+
+<center>
+	<figure>
+	<image src="4.2.png" width="700" height="400"/>
+	<figcaption><i>Figure 7. Prediction of next 10 trading days</i></figcaption>
+</figure>
+</center>
+
+
+<p>Figure illustrates the last 100 log-scaled price data with predicted price for the next 10 trading days. Wait, but why does it only display a linearly decreasing trend, not a fluctuation as the past price data did? Valid question — it’s because the model incorporated first differencing, which forecasts the next data point by adding an average change to the previous data point. </p>
+
+<p>Do you still remember I’ve mentioned above that ARIMA (0,1,0) is also called as a “random walk model”? If you recall the equation of our model, there was no trend as it’s been first differenced, with only drift and noise being present. Although the strictly linear decreasing trend of our forecast might not make sense at the first glance, if you recall the fact that our model follows a “random walk” which constantly and randomly drifts away from the previous data point, it will be much more easier for you to understand the result. Think of those red lined forecast as the average of all possibilities of random walk forecasts of 10 trading days. </p>
+
+<center>
+	<figure>
+	<image src="plot.png" width="700" height="400"/>
+	<figcaption><i>Figure 8. 50 Possibilities of random walk pattern</i></figcaption>
+</figure>
+</center>
+
+
+<p>This plot may help you get my previous point better. On top of the previous plot, 50 possibilities of random walk pattern from our model has been layered over with faint blue lines. Just as before, red dots indicate a forecasted value, whereas green line is the average of 50 possibilities that has been plotted. Though it’s slightly off, you can notice that it roughly follows the pattern of the red forecasted dots. If you increase the number of possibilities that you plot, to something like 2000, green line will very much resemble the pattern of the red dots.</p>
+
+<p>Let me wrap up the discussion of our modeling and forecasting with the final plot we’ll get after reverting it back to the original unit. (Remember we have log-transformed the data at the very beginning?) </p>
+
+
+<center>
+	<figure>
+	<image src="figure.png" width="700" height="400"/>
+	<figcaption><i>Figure 9. Plot with prediction in original unit</i></figcaption>
+</figure>
+</center>
+
+
+<p>10 days of our forecasts are barely visible, but at least you know we have came a long way!</p>
+
+<h3>Conclusion: Some Thoughts on Random Walk and Stock Prices</h3>
+
+<p>To be honest, it was not surprising at all that we have chosen ARIMA (0,1,0) random walk model to forecast the stock price data, since random walk comes up as a regular discussion in a finance world. Random walk theory in finance maintains that the “movements of stocks are utterly unpredictable, lacking any pattern that can be exploited by an investor”. Investors all around the world do countless technical and fundamental analysis to read off the pattern in price and volume in order to buy and sell stock at the right time, doing what perfectly contradicts the random walk hypothesis. And yes, it’s just one of the theory which you can rely on, or can just simply pass by. </p>
+
+<p>But you would agree on the point that, if reading the stock pattern was <i>that</i> easy and <i>that</i> doable, why would you, your boss, and my sister be grunting so frequently? Certainly it is not an easy, evident process; I personally support —as well as our model ARIMA (0,1,0) a.k.a. random walk model supports — the random walk theory, and guess we’ll still have to chase the rainbows!</p>
+
+
+
+</body>
+</html>
+
+
